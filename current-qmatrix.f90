@@ -31,8 +31,8 @@ B = norm2(position_B-cms) !distnace of B to the center of mass
 ka = 2.d0 * alpha * A
 kb = 2.d0 * beta * B
 !dimensions of matrix Qijk
-max_i = 4 !i: from 0 to 'max_l' for atom A
-max_j = 4 !j: from 0 to 'max_l' for atom B
+max_i = 5 !i: from 0 to 'max_l' for atom A
+max_j = 5 !j: from 0 to 'max_l' for atom B
 max_k = 6 !k: (in the paper)--> from 2 to 5/6 
 
 !Calculate the lowest and the highest possible N fot this ranges of i, j and k
@@ -62,20 +62,20 @@ enddo
 do N=max_N, min_N, -1
   !1)-if N > or = than 2 and even...
   if (mod(N, 2) == 0.and.N.ge.2) then
-  low_n = N/2
-  max_m = low_n - 1
-  do m=0, max_m 
-    nm = real(low_n) - real(m) - 0.5d0
-    !... apply eq.(34) 
-    H(N) = H(N) + 0.25d0 * comb(2*low_n-2,2*m) * p**(-nm) * gamma(nm) * Xp(2*m)
-    F(N) = F(N) + 0.25d0 * comb(2*low_n-2,2*m) * p**(-nm) * gamma(nm) * Xm(2*m)
-  enddo
+    low_n = N/2
+    max_m = low_n - 1
+    do m=0, max_m 
+      nm = real(low_n, kind=8) - real(m, kind=8) - 0.5d0
+      !... apply eq.(34) 
+      H(N) = H(N) + 0.25d0 * comb(2*low_n-2,2*m) * p**(-nm) * gamma(nm) * Xp(2*m)
+      F(N) = F(N) + 0.25d0 * comb(2*low_n-2,2*m) * p**(-nm) * gamma(nm) * Xm(2*m)
+    enddo
   !2)-if N > or = 2 and odd...
   else if (mod(N, 2) /= 0.and.N.ge.2) then
     low_n = (N-1)/2
     max_m = low_n - 1
     do m=0, max_m
-      nm = (real(N-1))/2 - real(m) - 0.5d0
+      nm = (real(N-1, kind=8))/2 - real(m, kind=8) - 0.5d0
       !... apply eq.(35)
       Gb(2*low_n+1) = Gb(2*low_n+1) + 0.25d0 * comb(2*low_n-1,2*m+1) * p**(-nm) * gamma(nm) * Xm(2*m+1)
     enddo
@@ -89,15 +89,15 @@ do N=max_N, min_N, -1
                                   exp(p*((alpha*A-beta*B)/p)**2d0)*dawson_cheb(sqrt(p)*((alpha*A-beta*B)/p)))
     else
     !... otherwise apply eq.(38)
-    Gb(N) = 2.d0*p/(N-1)*Gb(N+2)-ka/(N-1)*H(N+1)-kb/(N-1)*F(N+1)
-    Ga(N) = 2.d0*p/(N-1)*Ga(N+2)-kb/(N-1)*H(N+1)-ka/(N-1)*F(N+1)
+      Gb(N) = 2.d0*p/(N-1)*Gb(N+2)-ka/(N-1)*H(N+1)-kb/(N-1)*F(N+1)
+      Ga(N) = 2.d0*p/(N-1)*Ga(N+2)-kb/(N-1)*H(N+1)-ka/(N-1)*F(N+1)
     endif
   endif     
   !4)-if N < 2 and even...
   if (mod(N, 2) == 0.and.N.lt.2) then 
   !... apply eq.(37) and eq.(39)
-  F(N) = 2d0*p/(N-1)*F(N+2)-ka/(N-1)*Ga(N+1)-kb/(N-1)*Gb(N+1)
-  H(N) = 2d0*p/(N-1)*H(N+2)-kb/(N-1)*Ga(N+1)-ka/(N-1)*Gb(N+1)
+    F(N) = 2.d0*p/(N-1)*F(N+2)-ka/(N-1)*Ga(N+1)-kb/(N-1)*Gb(N+1)
+    H(N) = 2.d0*p/(N-1)*H(N+2)-kb/(N-1)*Ga(N+1)-ka/(N-1)*Gb(N+1)
   endif
 enddo
 
@@ -114,31 +114,38 @@ do N=min_N, max_N
 enddo
 !For Q01N apply eq.(33)
 do N=min_N, max_N
-  Q(0,1,N) = 1/(ka*kb)*(1*Gb(N)-1/kb*F(N-1))
+  Q(0,1,N) = 1.d0/(ka*kb)*(1.d0*Gb(N)-1/kb*F(N-1))
 enddo
 !For Q0jk apply eq.(29), but j=0 and j=1 were already calculated (start in j=2)
 do j=2, max_j
   do k=min_N, max_N
-    Q(0,j,k) = 1*Q(0,j-2,k)-(2*j-1)/(2.d0*beta*B)*Q(0,j-1,k-1) 
+    if (mod(j+k,2) /= 0) cycle
+    Q(0,j,k) = 1.d0*Q(0,j-2,k)-(2*j-1)/(2.d0*beta*B)*Q(0,j-1,k-1) 
   enddo
 enddo
 !For Qijk apply eq.(28), but i=0 were already calculated (start in i=1)
 do i=1, max_i
   do j=i, max_j
-    do k=0, max_k
-        Q(i,j,k) = (2+j-i-k)/(2.d0*alpha*A)*Q(i-1,j,k-1)-beta*B/(alpha*A)*Q(i-1,j-1,k)+p/(alpha*A)*Q(i-1,j,k+1)
+    do k=min_N, max_N
+      if (mod(i+j+k,2) /= 0) cycle
+      Q(i,j,k) = real(2+j-i-k, kind=8)/(2.d0*alpha*A)*Q(i-1,j,k-1)-beta*B/(alpha*A)*Q(i-1,j-1,k)+p/(alpha*A)*Q(i-1,j,k+1)
     enddo
   enddo
 enddo
 
 
-
 !CHECK RESULTS!!! How to check them???
 do k=2, max_k
-  write(6,*) "slice k =", k
+  write(6,'(A,I2)') "Slice k =", k
   do j=max_j, 0, -1
-    write(6,*) Q(:,j,k)
+    write(6,'(A,I2,A,100E20.10)') " j =",j,"  ",Q(:,j,k)
   enddo
+    write(6,'(A)',advance='no') "                  "
+  do i=0, max_i
+    write(6,'(A,I2,15X)',advance='no') "i =",i
+  enddo
+  write(6,*) " "
+  write(6,*) " "
 enddo
 
 
@@ -150,7 +157,7 @@ real(kind=8) function comb(a,b)
     implicit none
     integer, intent(in) :: a,b
     !factorial(x)=gamma(x+1)
-    comb = gamma(real(a+1)) / (gamma(real(b+1))*gamma(real(a-b+1)))
+    comb = gamma(real(a+1, kind=8)) / (gamma(real(b+1, kind=8))*gamma(real(a-b+1, kind=8)))
 end function comb
 
 !Define Dawson function with Chebyshev approximation:
