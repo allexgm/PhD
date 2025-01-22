@@ -134,7 +134,7 @@ do i=1, max_i
 enddo
 
 
-!CHECK RESULTS!!! How to check them???
+!Plot the Q matrix
 do k=2, max_k
   write(6,'(A,I2)') "Slice k =", k
   do j=max_j, 0, -1
