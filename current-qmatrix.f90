@@ -1,17 +1,28 @@
 program new_qmatrix
 !
 !----------------------------------------------------------------------------------+
-! Code to compute the Q-matrix (primitive radial integral)                         |
-! needed for the ECPs in a new way more efficient.                                 |
+! Code to compute the Q-matrix (primitive radial integrals), needed for the ECPs,  |
+! in a new way more efficient.                                 |
 ! See "Shaw, R. A., & Hill, J. G. (2017). The Journal of Chemical Physics, 147(7)" |        
+!                                                                                  |
+! Coded by: Alejandro L. García Muñoz                                              |
 !----------------------------------------------------------------------------------+
-  
+!
+! The computed Q-matrix takes as lower values for i, j and k, 0, 0 and 2 respectively.
+! The whole code was computed in double precision (kind=8) and the Q-matrix values
+! are associated with errors of the order of 1e-10 up to i, j and k = 6 and of the 
+! order of 1e-7 when i and j go up to 7.
+! Values of positions Q(i,j,k) with i and j > 7 can be neglected (mostly < 1e-10).
+!
+! By this, as a general recommendation while using this code, the Q-matrix should 
+! be computed always for i, j and k < 7.
+   
 implicit none
 real(kind=8) cms(3), alpha, beta, eta, p, position_A(3), position_B(3), A, B, ka, kb, nm
 integer i, j, k, max_i, max_j, max_k, N, min_N, max_N, low_n, m, max_m
-real(kind=8) comb, dawson_taylor, dawson_euler, dawson_cheb, x
+real(kind=8) comb, dawson_cheb
 real(kind=8), parameter :: pi = 3.14159265358979323846d0
-real(kind=8), allocatable :: Xp(:), Xm(:), H(:), F(:), Ga(:), Gb(:), Q(:,:,:)
+real(kind=8), allocatable :: Xp(:), Xm(:), H(:), F(:), Ga(:), Gb(:), Q(:,:,:), out_Q(:,:,:)
 
 !Set the initial parameters:
 !exponents of Gaussian in the basis set centered on atoms A and B respectively
@@ -31,9 +42,9 @@ B = norm2(position_B-cms) !distnace of B to the center of mass
 ka = 2.d0 * alpha * A
 kb = 2.d0 * beta * B
 !dimensions of matrix Qijk
-max_i = 5 !i: from 0 to 'max_l' for atom A
-max_j = 5 !j: from 0 to 'max_l' for atom B
-max_k = 6 !k: (in the paper)--> from 2 to 5/6 
+max_i = 4 !i: from 0 to 'max_l' for atom A
+max_j = 4 !j: from 0 to 'max_l' for atom B
+max_k = 4 !k: (in the paper)--> from 2 to 5/6 
 
 !Calculate the lowest and the highest possible N fot this ranges of i, j and k
 min_N = 2 - max_i - max_j !2 because is the min_k possible --> min_N possible
@@ -106,7 +117,8 @@ enddo
 !i and j matrix indices can be "normal" (from 0 to max_i/j), 
 !but for k index we need to go from lowest N to highest N 
 !because we will build Q in a recursive way (from positions outside the "matrix limits")
-allocate(Q(0:max_i,0:max_j,min_N:max_N))
+!'out_Q' is the final Q matrix with the correct dimensions
+allocate(Q(0:max_i,0:max_j,min_N:max_N),out_Q(0:max_i,0:max_j,2:max_k))
 Q(:,:,:) = 0.d0
 !For Q00N
 do N=min_N, max_N
@@ -121,6 +133,7 @@ do j=2, max_j
   do k=min_N, max_N
     if (mod(j+k,2) /= 0) cycle
     Q(0,j,k) = 1.d0*Q(0,j-2,k)-(2*j-1)/(2.d0*beta*B)*Q(0,j-1,k-1) 
+    if(Q(0,j,k) < 1.d-12) Q(0,j,k) = 0.d0
   enddo
 enddo
 !For Qijk apply eq.(28), but i=0 were already calculated (start in i=1)
@@ -129,14 +142,16 @@ do i=1, max_i
     do k=min_N, max_N
       if (mod(i+j+k,2) /= 0) cycle
       Q(i,j,k) = real(2+j-i-k, kind=8)/(2.d0*alpha*A)*Q(i-1,j,k-1)-beta*B/(alpha*A)*Q(i-1,j-1,k)+p/(alpha*A)*Q(i-1,j,k+1)
+      if(Q(i,j,k) < 1.d-12) Q(i,j,k) = 0.d0
     enddo
   enddo
 enddo
-
+!Build the output Q matrix part (from k=2 to max_k)
+out_Q(:,:,2:max_k) = Q(:,:,2:max_k)
 
 !Plot the Q matrix
 do k=2, max_k
-  write(6,'(A,I2)') "Slice k =", k
+  write(6,'(A,I3)') "Slice k =", k
   do j=max_j, 0, -1
     write(6,'(A,I2,A,100E20.10)') " j =",j,"  ",Q(:,j,k)
   enddo
@@ -147,7 +162,7 @@ do k=2, max_k
   write(6,*) " "
   write(6,*) " "
 enddo
-
+!write(6,*) "Q(8,8,6)", Q(8,8,6)
 
 deallocate(Xp, Xm, H, F, Gb, Ga, Q)
 end program new_qmatrix
