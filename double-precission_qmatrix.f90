@@ -2,7 +2,7 @@ program new_qmatrix
 !
 !----------------------------------------------------------------------------------+
 ! Code to compute the Q-matrix (primitive radial integrals), needed for the ECPs,  |
-! in a new way more efficient.                                 |
+! in a new way more efficient. (Double-precission code)                            |
 ! See "Shaw, R. A., & Hill, J. G. (2017). The Journal of Chemical Physics, 147(7)" |        
 !                                                                                  |
 ! Coded by: Alejandro L. García Muñoz                                              |
@@ -21,7 +21,7 @@ implicit none
 real(kind=8) cms(3), alpha, beta, eta, p, position_A(3), position_B(3), A, B, ka, kb, nm
 integer i, j, k, max_i, max_j, max_k, N, min_N, max_N, low_n, m, max_m
 real(kind=8) comb, dawson_cheb
-real(kind=8), parameter :: pi = 3.14159265358979323846d0
+real(kind=8), parameter :: pi = 3.14159265358979323846264338327950288419716939937510582097494459230d0
 real(kind=8), allocatable :: Xp(:), Xm(:), H(:), F(:), Ga(:), Gb(:), Q(:,:,:), out_Q(:,:,:)
 
 !Set the initial parameters:
